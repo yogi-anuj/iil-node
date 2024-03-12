@@ -4,7 +4,9 @@ const { updateAttendanceStatus, getAttendanceInformation, getPast2Attendances, m
 const { userOtpLogin, verifyOtp, logoutUser } = require('../controllers/authenticate');
 const { checkExpenseApprovalStatus, getExpenseTypes, createExpense, getExpenseByDate, submitExpense, submitMultipleExpenses, getExpense, getExpenseHistory, getExpensesLimit, getPendingExpenseApprovals, getPendingExpenseApprovalsById, approveMassExpensesRequest, approveExpenseRequestById } = require('../controllers/expense');
 const { getAllFeedback, addNewFeedback, updateFeedbackStatus } = require('../controllers/feedback');
-const { getDistributorMapping, getDistributorMappingById } = require('../controllers/mapping');
+const { getDistributorMapping, getDistributorMappingById, getDepotsForDistributor, addDistributorsMappingDetails,getDistributors, updateDistributorMappingDetailsById } = require('../controllers/mapping/distributor');
+const { addFarmerMappingDetails, getFarmerMappingDetails, getFarmerMappingDetailsById, updateFarmerMappingDetailsById } = require('../controllers/mapping/farmer');
+const { addRetailerMappingDetails } = require('../controllers/mapping/retailer');
 const { getPicklistData } = require('../controllers/picklist');
 const { getAreaManager } = require('../controllers/user');
 const authentication = require('../middleware/authentication');
@@ -60,5 +62,18 @@ router.post(`/${API_END_POINT.GET_FEEDBACK}`, authentication, getAllFeedback);
 // distributor routes
 router.post(`/${API_END_POINT.GET_DISTRIBUTOR_MAPPING_DETAILS}`, authentication, getDistributorMapping);
 router.post(`/${API_END_POINT.GET_DISTRIBUTOR_MAPPING_DETAILS_BY_ID}`, authentication, getDistributorMappingById);
+router.post(`/${API_END_POINT.GET_DEPOTS_FOR_DISTRIBUTOR}`, authentication, getDepotsForDistributor);
+router.post(`/${API_END_POINT.ADD_DISTRIBUTOR_MAPPING_DETAILS}`, authentication, addDistributorsMappingDetails);
+router.post(`/${API_END_POINT.GET_DISTRIBUTORS}`, authentication, getDistributors);
+router.post(`/${API_END_POINT.UPDATE_DISTRIBUTOR_MAPPING_DETAILS_BY_ID}`, authentication, updateDistributorMappingDetailsById);
+
+// farmer routes
+router.post(`/${API_END_POINT.ADD_FARMER_MAPPING_DETAILS}`, authentication, addFarmerMappingDetails);
+router.post(`/${API_END_POINT.GET_FARMER_MAPPING_DETAILS}`, authentication, getFarmerMappingDetails);
+router.post(`/${API_END_POINT.GET_FARMER_MAPPING_DETAILS_BY_ID}`, authentication, getFarmerMappingDetailsById);
+router.post(`/${API_END_POINT.UPDATE_FARMER_MAPPING_DETAILS_BY_ID}`, authentication, updateFarmerMappingDetailsById);
+//retailer routes 
+router.post(`/${API_END_POINT.ADD_RETAILER_MAPPING_DETAILS}`, authentication, addRetailerMappingDetails);
+
 
 module.exports = router;
