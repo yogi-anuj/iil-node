@@ -11,6 +11,7 @@ const {
     DISTRIBUTOR_APPROVAL_STATUS,
     RECORD_TYPES,
   } = require("./../../utilities/constants");
+const { UserModal } = require("../user/query");
 
 exports.insertLeaderBoard = async (score, scoreFor, userId) => {
     try {
@@ -20,12 +21,8 @@ exports.insertLeaderBoard = async (score, scoreFor, userId) => {
  
        if (await leaderBoard.insertPoints(score,scoreFor,userId)) {
           // after the insertion is successful, update the user's score inside user object
-          const updatedQry = `
-             UPDATE ${SCHEMA.SALESFORCE.USER} 
-             SET ${OBJECTKEYNAME.Total_Points__c} = COALESCE(${OBJECTKEYNAME.Total_Points__c}, 0) + ${score} 
-            WHERE ${SCHEMA.SALESFORCE.USER}.${OBJECTKEYNAME.SFID}='${userId}'
-          `
-          let response = await client.query(updatedQry)
+          
+          let response = await UserModal.updateScore(score,userId);
  
           return { success: true, message: 'Insertion was successful' };
        }

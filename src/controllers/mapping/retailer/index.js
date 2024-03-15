@@ -201,7 +201,11 @@ exports.getRetailerMappingDetails=async(req,res)=>{
         const {territory_mapping2__c,sfid, profile__c}=req.payload;
 
     let getQry;
-
+    console.log(sfid,
+      pageNumber,
+      // territory2Status,
+      profile__c,
+      searchField);
     let territory2Status = territory_mapping2__c ? true : false;
     let response = await retailerMapping.getAllRetailersByTerritory(
       sfid,

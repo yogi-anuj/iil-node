@@ -6,6 +6,37 @@ const {
   RECORD_TYPES,
   RECORDS_PER_PAGE,
 } = require("../../utilities/constants");
+const Product={
+  deleteProduct:async(herokuId)=>{
+    try{
+      const deletePreviousProductsQry = `
+      DELETE FROM ${SCHEMA.SALESFORCE.NEW_PRODUCT__C} WHERE ${OBJECTKEYNAME.VISIT__C__HEROKU_ID__C} = '${herokuId}'
+      `
+      await client.query(deletePreviousProductsQry);
+
+    }
+    catch(error){
+      throw error;
+    }
+
+  }
+
+};
+const Crop={
+  deleteCrop:async(herokuId)=>{
+    try{
+      const deletePreviousCropsQry=`
+      DELETE FROM ${SCHEMA.SALESFORCE.CROP__C} WHERE ${OBJECTKEYNAME.VISIT__C__HEROKU_ID__C} = '${herokuId}'
+      `
+      await client.query(deletePreviousCropsQry);
+
+    }
+    catch(error){
+      throw error;
+    }
+
+  }
+}
 const distributorVisits = {
   getDistributorVisitDetails: async (
     searchField,
@@ -184,6 +215,100 @@ const distributorVisits = {
     }
   },
 };
+const farmerVisits={
+  getFarmerVisitDetails:async(searchField,sfid)=>{
+    try{
+      let qry=``;
+      if(searchField && searchField.length>2){
+        qry=`SELECT 
+        ${SCHEMA.SALESFORCE.ACCOUNT}.${OBJECTKEYNAME.MOBILE__C},
+        ${SCHEMA.SALESFORCE.ACCOUNT}.${OBJECTKEYNAME.FARMER_NAME__C} as farmer_name,
+        ${SCHEMA.SALESFORCE.VISIT__C}.${OBJECTKEYNAME.BRAND__C},
+        ${OBJECTKEYNAME.OTHER_BRAND__C},
+        ${OBJECTKEYNAME.Plot_Area__c},
+        ${OBJECTKEYNAME.COMMENTS__C},
+        ${OBJECTKEYNAME.PRODUCT_INTERESTED__C},
+        ${OBJECTKEYNAME.FEEDBACK__C},
+        ${OBJECTKEYNAME.ON_FIELD__C},
+        ${SCHEMA.SALESFORCE.VISIT__C}.${OBJECTKEYNAME.CROP__C},
+        ${OBJECTKEYNAME.PEST_TYPE__C},
+        ${OBJECTKEYNAME.PEST_NAME__C},
+        ${OBJECTKEYNAME.IIL_PRODUCT_PROMOTED__C},
+        ${OBJECTKEYNAME.CONVERSION__C},
+        ${OBJECTKEYNAME.PRODUCT_BOUGHT__C},
+        ${OBJECTKEYNAME.PRODUCT_BOUGHT_FROM__C},
+        ${OBJECTKEYNAME.PRODUCT__C},
+        ${OBJECTKEYNAME.UNIT__C},
+        ${OBJECTKEYNAME.PRODUCT_QUANTITY__C},
+        TO_CHAR(${SCHEMA.SALESFORCE.VISIT__C}.${OBJECTKEYNAME.CREATED_DATE}, 'YYYY-MM-DD') as ${OBJECTKEYNAME.CREATED_DATE},
+        ${SCHEMA.SALESFORCE.VISIT__C}.${OBJECTKEYNAME.OWNER__C},
+        ${SCHEMA.SALESFORCE.VISIT__C}.${OBJECTKEYNAME.HEROKU_ID__C},
+        ${SCHEMA.SALESFORCE.VISIT__C}.${OBJECTKEYNAME.RECORD_TYPE}
+      FROM ${SCHEMA.SALESFORCE.VISIT__C}
+      LEFT JOIN ${SCHEMA.SALESFORCE.ACCOUNT} ON ${SCHEMA.SALESFORCE.ACCOUNT}.${OBJECTKEYNAME.SFID} = ${SCHEMA.SALESFORCE.VISIT__C}.${OBJECTKEYNAME.ACCOUNT__C}
+      WHERE
+      ${SCHEMA.SALESFORCE.VISIT__C}.${OBJECTKEYNAME.OWNER__C} = '${sfid}'
+      AND
+      ${SCHEMA.SALESFORCE.VISIT__C}.${OBJECTKEYNAME.RECORD_TYPE} = '${RECORD_TYPES.FARMER_VISIT}'
+      AND
+      ${SCHEMA.SALESFORCE.VISIT__C}._hc_err IS NULL
+      AND
+      (CAST(${SCHEMA.SALESFORCE.ACCOUNT}.${OBJECTKEYNAME.MOBILE__C} AS TEXT) iLIKE '${searchField}%' OR ${SCHEMA.SALESFORCE.ACCOUNT}.${OBJECTKEYNAME.FARMER_NAME__C} iLIKE '${searchField}%')
+      ORDER BY ${SCHEMA.SALESFORCE.VISIT__C}.${OBJECTKEYNAME.CREATED_DATE} DESC
+      LIMIT 20
+      `;
+
+      }
+      else{
+        qry=`
+        SELECT 
+        ${SCHEMA.SALESFORCE.ACCOUNT}.${OBJECTKEYNAME.MOBILE__C},
+        ${SCHEMA.SALESFORCE.ACCOUNT}.${OBJECTKEYNAME.FARMER_NAME__C} as farmer_name,
+        ${SCHEMA.SALESFORCE.VISIT__C}.${OBJECTKEYNAME.BRAND__C},
+        ${OBJECTKEYNAME.OTHER_BRAND__C},
+        ${OBJECTKEYNAME.Plot_Area__c},
+        ${OBJECTKEYNAME.COMMENTS__C},
+        ${OBJECTKEYNAME.PRODUCT_INTERESTED__C},
+        ${OBJECTKEYNAME.FEEDBACK__C},
+          ${OBJECTKEYNAME.ON_FIELD__C},
+          ${SCHEMA.SALESFORCE.VISIT__C}.${OBJECTKEYNAME.CROP__C},
+          ${OBJECTKEYNAME.PEST_TYPE__C},
+          ${OBJECTKEYNAME.PEST_NAME__C},
+          ${OBJECTKEYNAME.IIL_PRODUCT_PROMOTED__C},
+          ${OBJECTKEYNAME.CONVERSION__C},
+          ${OBJECTKEYNAME.PRODUCT_BOUGHT__C},
+          ${OBJECTKEYNAME.PRODUCT_BOUGHT_FROM__C},
+          ${OBJECTKEYNAME.PRODUCT__C},
+          ${OBJECTKEYNAME.UNIT__C},
+          ${OBJECTKEYNAME.PRODUCT_QUANTITY__C},
+          TO_CHAR(${SCHEMA.SALESFORCE.VISIT__C}.${OBJECTKEYNAME.CREATED_DATE}, 'YYYY-MM-DD') as ${OBJECTKEYNAME.CREATED_DATE},
+          ${SCHEMA.SALESFORCE.VISIT__C}.${OBJECTKEYNAME.OWNER__C},
+          ${SCHEMA.SALESFORCE.VISIT__C}.${OBJECTKEYNAME.HEROKU_ID__C},
+          ${SCHEMA.SALESFORCE.VISIT__C}.${OBJECTKEYNAME.RECORD_TYPE}
+        FROM ${SCHEMA.SALESFORCE.VISIT__C}
+        LEFT JOIN ${SCHEMA.SALESFORCE.ACCOUNT} ON ${SCHEMA.SALESFORCE.ACCOUNT}.${OBJECTKEYNAME.SFID} = ${SCHEMA.SALESFORCE.VISIT__C}.${OBJECTKEYNAME.ACCOUNT__C}
+        WHERE
+        ${SCHEMA.SALESFORCE.VISIT__C}.${OBJECTKEYNAME.OWNER__C} = '${sfid}'
+        AND
+        ${SCHEMA.SALESFORCE.VISIT__C}.${OBJECTKEYNAME.RECORD_TYPE} = '${RECORD_TYPES.FARMER_VISIT}'
+        AND
+        ${SCHEMA.SALESFORCE.VISIT__C}._hc_err IS NULL
+        ORDER BY ${SCHEMA.SALESFORCE.VISIT__C}.${OBJECTKEYNAME.CREATED_DATE} DESC
+        LIMIT 20
+        
+        `
+      }
+      return await client.query(qry);
+
+    }
+    catch(error){
+      throw error;
+    }
+  }
+}
 module.exports = {
+  Product,
+  Crop,
   distributorVisits,
+  farmerVisits
 };

@@ -2,6 +2,7 @@ const { responseBody } = require("../../../utilities/customResponse");
 const {
   API_END_POINT,
   MESSAGE,
+  SCORE,
   USER_HIERARCHY,
   OBJECTKEYNAME,
   NOTIFICATION_FOR,
@@ -13,6 +14,7 @@ const {
 const { distributor, distributorVisit } = require("../distributor/query");
 const { distributorVisits } = require("../query");
 const { getUniqueId } = require("../../../utilities/uniqueId");
+const { insertLeaderBoard } = require("../../leaderboard");
 
 exports.addDistributorVisit = async (req, res) => {
   try {
@@ -107,12 +109,10 @@ exports.addDistributorVisit = async (req, res) => {
         console.log(API_END_POINT.ADD_DISTRIBUTOR_VISIT, " ========> DATA 2");
       }
     }
-    insertLeaderBoard(
-      SCORE.VISIT.DISTRIBUTOR.SCORE,
+    insertLeaderBoard( SCORE.VISIT.DISTRIBUTOR.SCORE,
       SCORE.VISIT.DISTRIBUTOR.NAME,
-      sfid
-    );
-
+      sfid)
+    
     return res.json(
       responseBody(
         `Distributor Visit ${MESSAGE.INSERTED_SUCCESS}`,
@@ -132,6 +132,7 @@ exports.getDistributorVisit = async (req, res) => {
       searchField,
       pageNumber = 1,
       pageLimit = 20,
+
       distributorId = "",
     } = req.body;
     const { sfid } = req.payload;
@@ -144,6 +145,7 @@ exports.getDistributorVisit = async (req, res) => {
       responseBody(
         MESSAGE.FETCHSUCCESS,
         API_END_POINT.GET_DISTRIBUTOR_VISIT,
+        false,
         result.rows
       )
     );

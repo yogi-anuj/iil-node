@@ -1,4 +1,4 @@
-const { client } = require("../../../middleware/database/database");
+const { client } = require("./../../middleware/database/database");
 const {
   SCHEMA,
   OBJECTKEYNAME,
@@ -6,7 +6,7 @@ const {
   RECORD_TYPES,
   DISTRIBUTOR_APPROVAL_STATUS,
   STATUS,
-} = require("../../../utilities/constants");
+} = require("./../../utilities/constants");
 const format = require("pg-format");
 const leaderBoard={
    insertPoints:async(score,scoreFor,userId)=>{

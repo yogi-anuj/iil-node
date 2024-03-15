@@ -14,6 +14,21 @@ const UserModal = {
             throw error;
         }
     },
+    updateScore:async(score,userId)=>{
+        try{
+
+            const updatedQry = `
+            UPDATE ${SCHEMA.SALESFORCE.USER} 
+            SET ${OBJECTKEYNAME.Total_Points__c} = COALESCE(${OBJECTKEYNAME.Total_Points__c}, 0) + ${score} 
+           WHERE ${SCHEMA.SALESFORCE.USER}.${OBJECTKEYNAME.SFID}='${userId}'
+         `
+          await client.query(updatedQry)
+        }
+        catch(error){
+            throw error;
+
+        }
+    }
 } 
 
 module.exports = {

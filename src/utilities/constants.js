@@ -97,12 +97,6 @@ const COMPANIES = [
   'INDOGULF CROP SCIENCE',
 ];
 //AGRI EXPERT TYPE
-const AGRI_EXPERT_TYPE = {
-  INFLUENCER: 'Influencer',
-  GOVT_DEPT: 'Govt. deptt.',
-  COMPETITOR_EMPLOYEES: 'Competitor employee',
-  COMPETITOR_DISTRIBUTOR: 'Competitor distributor',
-};
 
 
 // development record types
@@ -187,6 +181,12 @@ const SCHEMA = {
     NOITIFICATIONS: 'public."Notifications"',
     USER:'public."_User"'
   },
+};
+const AGRI_EXPERT_TYPE = {
+  INFLUENCER: 'Influencer',
+  GOVT_DEPT: 'Govt. deptt.',
+  COMPETITOR_EMPLOYEES: 'Competitor employee',
+  COMPETITOR_DISTRIBUTOR: 'Competitor distributor',
 };
 //  ----------------------- schema ends here --------------------
 
@@ -1157,7 +1157,78 @@ const NOTIFICATION_FOR = {
 };
 
 
+
 // --------------------- moltiple notiications ends --------------------
+//----------score--------------------
+const SCORE = {
+  MAPPING: {
+    FARMER: {
+      NAME: 'FARMER-MAPPING',
+      SCORE: 5
+    },
+    RETAILER: {
+      NAME: 'RETAILER-MAPPING',
+      SCORE: 5
+    },
+    DISTRIBUTOR: {
+      NAME: 'DISTRIBUTOR-MAPPING',
+      SCORE: 5
+    },
+    AGRIEXPERT: {
+      NAME: 'AGRIEXPERT-MAPPING',
+      SCORE: 5
+    },
+  },
+  VISIT: {
+    FARMER: {
+      NAME: 'FARMER-VISIT',
+      SCORE: 5
+    },
+    RETAILER: {
+      NAME: 'RETAILER-VISIT',
+      SCORE: 5
+    },
+    DISTRIBUTOR: {
+      NAME: 'DISTRIBUTOR-VISIT',
+      SCORE: 5
+    },
+    AGRIEXPERT: {
+      NAME: 'AGRIEXPERT-VISIT',
+      SCORE: 5
+    },
+  },
+  EVENT: {
+    BALLOONSHOW: {
+      NAME: 'BALLOON-SHOW',
+      SCORE: 5
+    },
+    DEMOACTIVITY: {
+      NAME: 'DEMO-ACTIVITY',
+      SCORE: 5
+    },
+    DEMOLPD: {
+      NAME: 'DEMOLPD-ACTIVITY',
+      SCORE: 5
+    },
+    FARMERMEET: {
+      NAME: 'FARMER-MEET',
+      SCORE: 5
+    },
+    KRISHIMELA: {
+      NAME: 'KRISHI-MELA',
+      SCORE: 5
+    },
+    KVKEVENT: {
+      NAME: 'KVK-EVENT',
+      SCORE: 5
+    },
+    VANCAMPAIGN: {
+      NAME: 'VAN-CAMPAIGN',
+      SCORE: 5
+    },
+  }
+};
+//------------------score-ends--------
 
 
 const MAXIMUM_EXPENSE_CLAIMING_DAYS = 45;
@@ -1183,4 +1254,6 @@ module.exports = {
   MAXIMUM_EXPENSE_CLAIMING_DAYS,
   NOTIFICATION_FOR,
   DISTRIBUTOR_APPROVAL_STATUS,
+  SCORE,
+  AGRI_EXPERT_TYPE
 };
