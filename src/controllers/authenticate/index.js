@@ -103,6 +103,7 @@ exports.verifyOtp = async (req, res) => {
                 name__c: checkingUser.rows[0].name__c,
                 profile__c: checkingUser.rows[0].profile__c,
                 sfid: checkingUser.rows[0].sfid,
+                herokuId__c: checkingUser.rows[0].heroku_id__c,
                 territory_mapping1__c: checkingUser.rows[0].territory_mapping1__c,
                 territory_mapping2__c: checkingUser.rows[0].territory_mapping2__c,
                 // recordTypeId: checkingUser.rows[0].recordTypeId,                  // for dms application

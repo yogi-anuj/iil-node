@@ -1,4 +1,3 @@
-const { selectFields } = require("express-validator/src/field-selection");
 const {
   API_END_POINT,
   MESSAGE,
@@ -12,11 +11,12 @@ const {
 } = require("../../../utilities/constants");
 const { responseBody } = require("../../../utilities/customResponse");
 const { Files } = require("../../files/query");
-const { distributorMapping } = require("../query");
-const { distributor } = require("./query");
+const { distributorMapping, Account } = require("../query");
+const { Distributor } = require("./query");
 const { getUniqueId } = require("../../../utilities/uniqueId");
 const { Notification } = require("../../notification/query");
 const { NotificationMessage } = require("../../notification/notificationMessage");
+const { UserModal } = require("../../user/query");
 
 // get all distributors
 exports.getDistributorMapping = async (req, res) => {
@@ -26,13 +26,15 @@ exports.getDistributorMapping = async (req, res) => {
 
     let territory2Status = territory_mapping2__c ? true : false;
 
-    let response = await distributorMapping.getDistributorMapping(
-      sfid,
-      pageNumber,
-      territory2Status,
-      profile__c,
-      searchField
-    );
+    let response = profile__c === USER_HIERARCHY.Finance_user ?
+      await Distributor.getDistributorsForFinanceTeam(pageNumber, searchField) :
+      await Distributor.getDistributorsWithinTerritory(
+        sfid,
+        pageNumber,
+        territory2Status,
+        profile__c,
+        searchField
+      );
 
     return res.json(
       responseBody(
@@ -71,21 +73,23 @@ exports.getDistributorMappingById = async (req, res) => {
         );
     }
 
-    let distributorDetails = await distributorMapping.getDistributorById(
-      herokuId
-    );
-    let Proprietor_Details_Response =
-      await distributorMapping.getProprietorDetailById(herokuId);
-    let Company_Details__Response =
-      await distributorMapping.getCompanyDetailById(herokuId);
-    let Product_Of_Interest_Response =
-      await distributorMapping.getProductInterestById(herokuId);
-    let Sister_Company_Details_Response =
-      await distributorMapping.getSisterCompanyDetailById(herokuId);
+    let distributorDetails = await Distributor.getDistributorById(herokuId);
+
+    let Proprietor_Details_Response = await Distributor.getProprietorDetailById(herokuId);
+
+    let Company_Details__Response = await Distributor.getCompanyDetailById(herokuId);
+
+    let Product_Of_Interest_Response = await Distributor.getProductInterestById(herokuId);
+
+    let Sister_Company_Details_Response = await Distributor.getSisterCompanyDetailById(herokuId);
+
+    let Major_Crops_Response = await Distributor.getMajorCropDetailById(herokuId);
+
+    let Material_Dispatch_Destination_Response = await Distributor.getMaterialDispatchDestinationDetailById(herokuId);
+
     let Files_Response = await Files.getAccountsFileDetailById(herokuId);
-    let Approval_Response = await distributorMapping.getApprovalDetailById(
-      herokuId
-    );
+
+    let Approval_Response = await Distributor.getApprovalDetailById(herokuId);
 
     return res.json(
       responseBody(
@@ -98,6 +102,8 @@ exports.getDistributorMappingById = async (req, res) => {
           Company_Details__c: Company_Details__Response.rows,
           Product_Of_Interest__c: Product_Of_Interest_Response.rows,
           Sister_Company_Details__c: Sister_Company_Details_Response.rows,
+          Major_Crops__c: Major_Crops_Response.rows,
+          Material_Dispatch_Destination__c: Material_Dispatch_Destination_Response.rows,
           Files__c: Files_Response.rows,
           Approval__c: Approval_Response.rows,
         }
@@ -115,23 +121,26 @@ exports.getDistributorMappingById = async (req, res) => {
       );
   }
 };
+
+// get all the depots for a distributor
 exports.getDepotsForDistributor = async (req, res) => {
   try {
     const { territory_mapping2__c, profile__c, sfid } = req.payload;
     let territory2Status = territory_mapping2__c ? true : false;
 
-    let states = await distributor.getStateQry(
+    // getting all the states for the distributor within the regionS
+    let states = await Distributor.getStateQry(
       profile__c,
       territory2Status,
       sfid
     );
 
     let depotResponse = {};
+
+    // if states found, get depots within the states
     if (states.rowCount) {
-      depotResponse = await distributor.getDepotsForStates(states.rows);
-      console.log("checking depot response", depotResponse.rows);
+      depotResponse = await Distributor.getDepotsForStates(states.rows);
     }
-    console.log("checking flow");
 
     return res.json(responseBody(
       MESSAGE.FETCHSUCCESS,
@@ -148,188 +157,184 @@ exports.getDepotsForDistributor = async (req, res) => {
       );
   }
 };
-const sendNotification = async (fcmTokens, { header, message }) => {
-  try {
-    let response = await firebaseAdmin.messaging().sendEachForMulticast({
-      tokens: fcmTokens,
-      notification: {
-        title: header,
-        body: message,
-      },
-    });
-    console.log("checking notification status", response.responses[0].success);
-  } catch (error) {
-    console.error(error);
-    throw error;
-  }
-};
-const distributorCreationNotification = async (
-  saleRepresentative,
-  ownerSfid,profile__c
-) => {
-  try {
-    let managerData = await distributor.managerDataQuery(profile__c,ownerSfid);
-    if (managerData.rows.length > 0) {
-      let { managername, managersfid } = managerData.rows[0];
-      let message = NotificationMessage.distributorMappingMessage(
-        managername,
-        saleRepresentative
-      );
+// const sendNotification = async (fcmTokens, { header, message }) => {
+//   try {
+//     let response = await firebaseAdmin.messaging().sendEachForMulticast({
+//       tokens: fcmTokens,
+//       notification: {
+//         title: header,
+//         body: message,
+//       },
+//     });
+//     console.log("checking notification status", response.responses[0].success);
+//   } catch (error) {
+//     console.error(error);
+//     throw error;
+//   }
+// };
+// const distributorCreationNotification = async (
+//   saleRepresentative,
+//   ownerSfid,profile__c
+// ) => {
+//   try {
+//     let managerData = await distributor.managerDataQuery(profile__c,ownerSfid);
+//     if (managerData.rows.length > 0) {
+//       let { managername, managersfid } = managerData.rows[0];
+//       let message = NotificationMessage.distributorMappingMessage(
+//         managername,
+//         saleRepresentative
+//       );
 
-      let notificationHeader = 'Distributor Mapping';
-      let notificationid = await Notification.insertNotification(
-        NOTIFICATION_FOR.SPECIFIC,
-        message,
-        ownerSfid,
-        managersfid,
-        notificationHeader,
-      );
-      return notificationid;
-    }
-    return false;
-  } catch (error) {
-    throw error;
-  }
-};
-const triggerNotification = async (notificationId) => {
-  try {
-    // from notificationId get the notification
-    const notification = await Notification.notificationById(notificationId);
-    
-    let fcmTokens = [];
+//       let notificationHeader = 'Distributor Mapping';
+//       let notificationid = await Notification.insertNotification(
+//         NOTIFICATION_FOR.SPECIFIC,
+//         message,
+//         ownerSfid,
+//         managersfid,
+//         notificationHeader,
+//       );
+//       return notificationid;
+//     }
+//     return false;
+//   } catch (error) {
+//     throw error;
+//   }
+// };
+// const triggerNotification = async (notificationId) => {
+//   try {
+//     // from notificationId get the notification
+//     const notification = await Notification.notificationById(notificationId);
 
-    // if for all get all the logged in users fcm token
-    if (notification && notification.messageFor === NOTIFICATION_FOR.ALL) {
-      // TO BE DONE: confirmation required if
-    }
-    // if for specific then check if user is logged in and then get the fcm token for that user
-    else if (
-      notification.rowCount &&
-      notification.rows[0].messageFor === NOTIFICATION_FOR.SPECIFIC
-    ) {
-      const user = await Notification.notificationSpecific(notification.rows[0].to);
-      if (user.rowCount && user.rows[0].fcm_token__c && user.rows[0].loginStatus) {
-        fcmTokens.push(user.rows[0].fcm_token__c);
-      }
-    }
-    // if for farmers then check if user is logged in and then get the fcm token for all farmers
-    else if (
-      notification &&
-      notification.messageFor === NOTIFICATION_FOR.FARMERS
-    ) {
-      const user = await Notification.notificationFarmer();
-      // if(user && user.attributes.fcm_token__c){
-      //     fcmTokens.push(user.attributes.fcm_token__c);
-      // }
-    }
+//     let fcmTokens = [];
 
-    let notificationBody = {
-      header: notification.rows[0].header || "IIL 360",
-      message: notification.rows[0].message || "Checking for updates",
-    };
-    // send notification only if it finds any fcm token
-    fcmTokens.length > 0 &&
-      (await sendNotification(fcmTokens, notificationBody));
+//     // if for all get all the logged in users fcm token
+//     if (notification && notification.messageFor === NOTIFICATION_FOR.ALL) {
+//       // TO BE DONE: confirmation required if
+//     }
+//     // if for specific then check if user is logged in and then get the fcm token for that user
+//     else if (
+//       notification.rowCount &&
+//       notification.rows[0].messageFor === NOTIFICATION_FOR.SPECIFIC
+//     ) {
+//       const user = await Notification.notificationSpecific(notification.rows[0].to);
+//       if (user.rowCount && user.rows[0].fcm_token__c && user.rows[0].loginStatus) {
+//         fcmTokens.push(user.rows[0].fcm_token__c);
+//       }
+//     }
+//     // if for farmers then check if user is logged in and then get the fcm token for all farmers
+//     else if (
+//       notification &&
+//       notification.messageFor === NOTIFICATION_FOR.FARMERS
+//     ) {
+//       const user = await Notification.notificationFarmer();
+//       // if(user && user.attributes.fcm_token__c){
+//       //     fcmTokens.push(user.attributes.fcm_token__c);
+//       // }
+//     }
 
-    // for testing purpose
-    // await sendNotification();
-  } catch (error) {
-    console.error(error);
-    throw error;
-  }
-};
+//     let notificationBody = {
+//       header: notification.rows[0].header || "IIL 360",
+//       message: notification.rows[0].message || "Checking for updates",
+//     };
+//     // send notification only if it finds any fcm token
+//     fcmTokens.length > 0 &&
+//       (await sendNotification(fcmTokens, notificationBody));
 
-const distributorMappingApprovalFinance = async (
-  sfid,
-  saleRepresentativeSfid,
-  distributorName,
-  approvalStatus
-) => {
-  try {
-    let message = distributor.distributorApprovalMessage(
-      distributorName,
-      approvalStatus
-    );
+//     // for testing purpose
+//     // await sendNotification();
+//   } catch (error) {
+//     console.error(error);
+//     throw error;
+//   }
+// };
 
-    // notification insertion inside parse
-    //const NotificationObj = Parse.Object.extend('Notifications');
-    //const notification = new NotificationObj();
-    //notification.set('messageFor', NOTIFICATION_FOR.SPECIFIC);
-    //notification.set('message', message);
-    //notification.set('from',sfid);
-    // notification.set('to', saleRepresentativeSfid);
-    // notification.set('header', 'Distributor Mapping');
-    //let savedNotification = await notification.save(null, { useMasterKey: true });
-    let notificationid = await Notification.insertNotification(
-      NOTIFICATION_FOR.SPECIFIC,
-      message,
-      sfid,
-      saleRepresentativeSfid
-    );
-    return notificationid;
-  } catch (error) {
-    throw error;
-  }
-};
+// const distributorMappingApprovalFinance = async (
+//   sfid,
+//   saleRepresentativeSfid,
+//   distributorName,
+//   approvalStatus
+// ) => {
+//   try {
+//     let message = distributor.distributorApprovalMessage(
+//       distributorName,
+//       approvalStatus
+//     );
 
-const updateDistributorDataForFinance = async (
-  body,
-  sfid,
-  saleRepresentativeSfid,
-  distributorName
-) => {
-  try {
-    const {
-      Comments__c = "",
-      isApproved,
+//     // notification insertion inside parse
+//     //const NotificationObj = Parse.Object.extend('Notifications');
+//     //const notification = new NotificationObj();
+//     //notification.set('messageFor', NOTIFICATION_FOR.SPECIFIC);
+//     //notification.set('message', message);
+//     //notification.set('from',sfid);
+//     // notification.set('to', saleRepresentativeSfid);
+//     // notification.set('header', 'Distributor Mapping');
+//     //let savedNotification = await notification.save(null, { useMasterKey: true });
+//     let notificationid = await Notification.insertNotification(
+//       NOTIFICATION_FOR.SPECIFIC,
+//       message,
+//       sfid,
+//       saleRepresentativeSfid
+//     );
+//     return notificationid;
+//   } catch (error) {
+//     throw error;
+//   }
+// };
 
-      herokuId,
-    } = body;
-    const values = [
-      herokuId,
-      getUniqueId(),
-      Comments__c || "",
-      "L4",
-      sfid,
-      isApproved === "Yes" ? STATUS.APPROVED : STATUS.REJECTED,
-    ];
-    approvalInsertResponse = await distributor.approveQry(values);
-    approvalUpdateResponse = await distributor.updateDistributorQry(
-      isApproved,
-      herokuId
-    );
-    let approvalStatus =
-      isApproved === "Yes" ? STATUS.APPROVED : STATUS.REJECTED;
-    let notificationId = await distributorMappingApprovalFinance(
-      sfid,
-      saleRepresentativeSfid,
-      distributorName,
-      approvalStatus.toLocaleLowerCase() || ""
-    );
-    notificationId && (await triggerNotification(notificationId));
+// const updateDistributorDataForFinance = async (
+//   body,
+//   sfid,
+//   saleRepresentativeSfid,
+//   distributorName
+// ) => {
+//   try {
+//     const {
+//       Comments__c = "",
+//       isApproved,
 
-    return {
-      message: "Distributor Mapping updated successfully",
-      status: true,
-    };
-  } catch (error) {
-    throw error;
-  }
-};
+//       herokuId,
+//     } = body;
+//     const values = [
+//       herokuId,
+//       getUniqueId(),
+//       Comments__c || "",
+//       "L4",
+//       sfid,
+//       isApproved === "Yes" ? STATUS.APPROVED : STATUS.REJECTED,
+//     ];
+//     approvalInsertResponse = await distributor.approveQry(values);
+//     approvalUpdateResponse = await distributor.updateDistributorQry(
+//       isApproved,
+//       herokuId
+//     );
+//     let approvalStatus =
+//       isApproved === "Yes" ? STATUS.APPROVED : STATUS.REJECTED;
+//     let notificationId = await distributorMappingApprovalFinance(
+//       sfid,
+//       saleRepresentativeSfid,
+//       distributorName,
+//       approvalStatus.toLocaleLowerCase() || ""
+//     );
+//     notificationId && (await triggerNotification(notificationId));
 
+//     return {
+//       message: "Distributor Mapping updated successfully",
+//       status: true,
+//     };
+//   } catch (error) {
+//     throw error;
+//   }
+// };
+
+// onboard new distributors
 exports.addDistributorsMappingDetails = async (req, res) => {
   // initializing herokuid so that it is accessible in catch block
   let herokuId = getUniqueId();
-
   try {
     const { profile__c, sfid, name__c } = req.payload;
-    if (
-      !(
-        profile__c === USER_HIERARCHY.SI__user ||
-        profile__c === USER_HIERARCHY.AM__user ||
-        profile__c === USER_HIERARCHY.VP_user
-      )
-    ) {
+
+    // restricting other profiles to onboard new distributors
+    if (!(profile__c === USER_HIERARCHY.SI__user || profile__c === USER_HIERARCHY.AM__user || profile__c === USER_HIERARCHY.VP_user)) {
       return res
         .status(404)
         .json(
@@ -433,6 +438,11 @@ exports.addDistributorsMappingDetails = async (req, res) => {
       Geo_Location__Longitude__s,
     } = req.body;
 
+    // checking geo locaiton
+    if (!(Geo_Location__Latitude__s && Geo_Location__Longitude__s)) {
+      return res.status(404).json(responseBody(MESSAGE.GEOLOCATION_MISSING, API_END_POINT.ADD_DISTRIBUTOR_MAPPING_DETAILS));
+    }
+
     if (
       !(
         Firm_Name__c &&
@@ -450,6 +460,8 @@ exports.addDistributorsMappingDetails = async (req, res) => {
         Establishment_Year__c &&
         Nature_of_Firms__c &&
         Business_Type__c &&
+
+        // ----------- proprietor details ---------
         Shop_Office__c &&
         Godown_Area__c &&
         Godown_Facility__c &&
@@ -464,18 +476,20 @@ exports.addDistributorsMappingDetails = async (req, res) => {
         Product_Total__c &&
         Is_Income_Tax_Assessee &&
         PAN_No__c &&
+
+        // -------------- existing company details --------
         Annual_Income__c &&
         Expected_1_Year_Turnover_With_IIL_c &&
-        Proposed_Payment_Terms &&
-        Payment_Credit_Limit__c &&
+        typeof (Proposed_Payment_Terms) == 'number' &&
+        typeof (Payment_Credit_Limit__c) == 'number' &&
         Total_Retailers__c &&
         Total_Districts_Covered__c &&
         Total_Villages_Covered__c &&
         Area_Specification__c &&
-        Major_Crops__c &&
-        Material_Dispatch_Destination__c &&
-        Geo_Location__Latitude__s &&
-        Geo_Location__Longitude__s
+
+        // ---------- interested products -----------
+        // -------- sister company --------
+        Material_Dispatch_Destination__c
       )
     ) {
       return res
@@ -538,9 +552,7 @@ exports.addDistributorsMappingDetails = async (req, res) => {
 
     // checking unique email id for distributor
     if (Email__c) {
-      const checkEmailRes = await distributor.checkEmailForDistributor(
-        Email__c
-      );
+      const checkEmailRes = await Account.getAccountDetailByEmail(Email__c);
       if (checkEmailRes.rowCount) {
         return res
           .status(400)
@@ -552,14 +564,11 @@ exports.addDistributorsMappingDetails = async (req, res) => {
           );
       }
     }
+
+    // checking unique mobile for distributor
     if (Mobile__c) {
-      const checkMobileRes = await distributor.checkMobileForDistributor(
-        Mobile__c
-      );
-      if (
-        checkMobileRes.rowCount &&
-        checkMobileRes.rows[0][OBJECTKEYNAME.MOBILE__C]
-      ) {
+      const checkMobileRes = await Account.getAccountDetailsByMobileAndAccountType(Mobile__c, RECORD_TYPES.DISTRIBUTOR);
+      if (checkMobileRes.rowCount) {
         return res
           .status(400)
           .json(
@@ -635,7 +644,6 @@ exports.addDistributorsMappingDetails = async (req, res) => {
       Total_Districts_Covered__c,
       Total_Villages_Covered__c,
       Area_Specification__c,
-      Major_Crops__c,
       Dealer_Credit__c,
       Dealer_Credit_Days__c,
       Transporter_Name_1__c,
@@ -653,20 +661,23 @@ exports.addDistributorsMappingDetails = async (req, res) => {
       herokuId,
       sfid,
     ];
-    const insertQueryRes = await distributor.insertQuery(values);
-    
+    const insertQueryRes = await Distributor.insertQuery(values);
+
+    // if record is inserted then insert the other array type records
     if (insertQueryRes.rowCount) {
+
       if (Proprietor_Details__c.length > 0) {
         let insertData = [];
         for (let index = 0; index < Proprietor_Details__c.length; index++) {
           let {
-            Business_Owner_Name__c = "",
-            Permanent_Address__c = "",
-            Present_Address__c = "",
-            Father_Husband_Name__c = "",
-            Business_Owner_Mobile__c = "",
-            Business_Owner_Email__c = "",
+            Business_Owner_Name__c = '',
+            Permanent_Address__c = '',
+            Present_Address__c = '',
+            Father_Husband_Name__c = '',
+            Business_Owner_Mobile__c = '',
+            Business_Owner_Email__c = '',
           } = Proprietor_Details__c[index];
+
           if (
             !(
               Business_Owner_Name__c &&
@@ -677,7 +688,7 @@ exports.addDistributorsMappingDetails = async (req, res) => {
               Business_Owner_Email__c
             )
           ) {
-            await distributor.deleteDistributorDetail(herokuId);
+            await Distributor.deleteDistributorDetailByHerokuId(herokuId);
             return res
               .status(404)
               .json(
@@ -698,19 +709,20 @@ exports.addDistributorsMappingDetails = async (req, res) => {
             getUniqueId(),
           ]);
         }
-        insertPropertieorRes = await distributor.insertPropertieor(insertData);
+        await Distributor.insertProprietorDetails(insertData);
       }
+
       if (Company_Details__c.length > 0) {
         let insertData = [];
         for (let index = 0; index < Company_Details__c.length; index++) {
           let {
-            Company_Existing_Business__c = "",
-            Total_Dealing_Years__c = "",
-            Major_Product__c = "",
-            Annual_Turnover__c = "",
-            Total_Dealers__c = "",
-            Total_Credit_Years__c = "",
-            Cash_Or_Credit__c = "",
+            Company_Existing_Business__c = '',
+            Total_Dealing_Years__c = '',
+            Major_Product__c = '',
+            Annual_Turnover__c = '',
+            Total_Dealers__c = '',
+            Total_Credit_Years__c = '',
+            Cash_Or_Credit__c = '',
           } = Company_Details__c[index];
           if (
             !(
@@ -721,8 +733,8 @@ exports.addDistributorsMappingDetails = async (req, res) => {
               Total_Dealers__c
             )
           ) {
-            await distributor.deleteDistributorDetail(herokuId);
-            await distributor.deletePropertie(herokuId);
+            await Distributor.deleteDistributorDetailByHerokuId(herokuId);
+            // await distributor.deletePropertie(herokuId);
             return res
               .status(404)
               .json(
@@ -744,20 +756,21 @@ exports.addDistributorsMappingDetails = async (req, res) => {
             getUniqueId(),
           ]);
         }
-        await distributor.insertCompanyDetails(insertData);
+        await Distributor.insertCompanyDetails(insertData);
       }
+
       if (Product_Of_Interest__c.length > 0) {
         let insertData = [];
         for (let index = 0; index < Product_Of_Interest__c.length; index++) {
           let {
-            Product_Name__c = "",
-            Other_Products__c = "",
-            Products_Unit__c = "",
-            Current_Fiscal_Year__c = "",
-            Next_Fiscal_Year__c = "",
-            Next_Fiscal_Year_Unit__c = "",
-            Next_Fiscal_Year_Quantity__c = "",
-            Quantity__c = "",
+            Product_Name__c = '',
+            Other_Products__c = '',
+            Products_Unit__c = '',
+            Current_Fiscal_Year__c = '',
+            Next_Fiscal_Year__c = '',
+            Next_Fiscal_Year_Unit__c = '',
+            Next_Fiscal_Year_Quantity__c = '',
+            Quantity__c = '',
           } = Product_Of_Interest__c[index];
           if (
             !(
@@ -770,9 +783,9 @@ exports.addDistributorsMappingDetails = async (req, res) => {
               Next_Fiscal_Year__c
             )
           ) {
-            await distributor.deleteDistributorDetail(herokuId);
-            await distributor.deletePropertie(herokuId);
-            await distributor.deleteCompanyDetails(herokuId);
+            await Distributor.deleteDistributorDetailByHerokuId(herokuId);
+            // await distributor.deletePropertie(herokuId);
+            // await distributor.deleteCompanyDetails(herokuId);
             return res
               .status(404)
               .json(
@@ -796,15 +809,16 @@ exports.addDistributorsMappingDetails = async (req, res) => {
           ]);
         }
 
-        await distributor.productOfInterest(insertData);
+        await Distributor.insertProductOfInterest(insertData);
       }
+
       if (Sister_Company_Details__c.length > 0) {
         let insertData = [];
         for (let index = 0; index < Sister_Company_Details__c.length; index++) {
           let {
-            Sister_Company__c = "",
-            Sister_Company_Address__c = "",
-            Sister_Company_Turnover__c = "",
+            Sister_Company__c = '',
+            Sister_Company_Address__c = '',
+            Sister_Company_Turnover__c = '',
           } = Sister_Company_Details__c[index];
 
           insertData.push([
@@ -815,7 +829,31 @@ exports.addDistributorsMappingDetails = async (req, res) => {
             getUniqueId(),
           ]);
         }
-        await distributor.sisterCompanyDetails(insertData);
+        await Distributor.insertSisterCompanyDetails(insertData);
+      }
+
+      if (Material_Dispatch_Destination__c.length > 0) {
+        let insertData = [];
+        for (let index = 0; index < Material_Dispatch_Destination__c.length; index++) {
+          let {
+            depot_name__c = '',
+          } = Material_Dispatch_Destination__c[index];
+          insertData.push([
+            depot_name__c,
+            herokuId,
+            getUniqueId(),
+          ]);
+        }
+        await Distributor.insertMaterialDispatchDestination(insertData);
+      }
+
+      if (Major_Crops__c.length > 0) {
+        let insertData = [];
+        for (let index = 0; index < Major_Crops__c.length; index++) {
+          let { crop_Name__c = '' } = Major_Crops__c[index];
+          insertData.push([crop_Name__c, herokuId, getUniqueId()]);
+        }
+        await Distributor.insertCrop(insertData);
       }
 
       if (Files__c.length > 0) {
@@ -823,54 +861,50 @@ exports.addDistributorsMappingDetails = async (req, res) => {
         for (let index = 0; index < Files__c.length; index++) {
           let { fileName = "", url = "" } = Files__c[index];
           if (!(fileName && url)) {
-            await distributor.deleteDistributorDetail(herokuId);
-            await distributor.deletePropertie(herokuId);
-            await distributor.deleteCompanyDetails(herokuId);
-            await distributor.deleteProductOfInterest(herokuId);
-            await distributor.deleteSisterCompanyDetails(herokuId);
-            return responseBody(
-              "Files missing params",
-              API_END_POINT.ADD_DISTRIBUTOR_MAPPING_DETAILS
-            );
+            await Distributor.deleteDistributorDetailByHerokuId(herokuId);
+            // await distributor.deletePropertie(herokuId);
+            // await distributor.deleteCompanyDetails(herokuId);
+            // await distributor.deleteProductOfInterest(herokuId);
+            // await distributor.deleteSisterCompanyDetails(herokuId);
+            return res.status(404).json(
+              responseBody(
+                "Files missing params",
+                API_END_POINT.ADD_DISTRIBUTOR_MAPPING_DETAILS
+              )
+            )
           }
           insertData.push([fileName, url, herokuId, getUniqueId()]);
         }
-        await distributor.files(insertData);
+        await Files.insertMultipleAccountFiles(insertData);
       }
 
-      approvalResponse = await distributor.approvedQuery(herokuId,sfid,getUniqueId());
+      approvalResponse = await Distributor.insertPendingApprovalRecords(herokuId, sfid, getUniqueId());
     }
-    console.log("checking flow");
 
-    let saleRepresentative = name__c;
-    let notificationId = await distributorCreationNotification(
-      //currentUser,
-      saleRepresentative,
-      sfid,
-      profile__c
-    );
-    notificationId && (await triggerNotification(notificationId));
-    //  await  insertLeaderBoard(SCORE.MAPPING.DISTRIBUTOR.SCORE, SCORE.MAPPING.DISTRIBUTOR.NAME,currentUser.attributes.sfid)
-
-    // await pool.query('COMMIT');
+    // let saleRepresentative = name__c;
+    // let notificationId = await distributorCreationNotification(
+    //   saleRepresentative,
+    //   sfid,
+    //   profile__c
+    // );
+    // notificationId && (await triggerNotification(notificationId));
     return res
-      .status(404)
       .json(
         responseBody(
           `Distributor ${MESSAGE.INSERTED_SUCCESS}`,
           API_END_POINT.ADD_DISTRIBUTOR_MAPPING_DETAILS,
+          false,
           {}
         )
       );
   } catch (error) {
     console.error(error);
-    console.log("checking heroku id", herokuId);
-    await distributor.deleteDistributorDetail(herokuId);
-    await distributor.deletePropertie(herokuId);
-    await distributor.deleteCompanyDetails(herokuId);
-    await distributor.deleteProductOfInterest(herokuId);
-    await distributor.deleteSisterCompanyDetails(herokuId);
-    await distributor.deleteFilesDetails(herokuId);
+    await Distributor.deleteDistributorDetailByHerokuId(herokuId);
+    // await distributor.deletePropertie(herokuId);
+    // await distributor.deleteCompanyDetails(herokuId);
+    // await distributor.deleteProductOfInterest(herokuId);
+    // await distributor.deleteSisterCompanyDetails(herokuId);
+    // await distributor.deleteFilesDetails(herokuId);
     return res
       .status(500)
       .json(
@@ -881,6 +915,7 @@ exports.addDistributorsMappingDetails = async (req, res) => {
       );
   }
 };
+
 const updateDistributorDataForVP = async (body, sfid) => {
   try {
     const { Comments__c = "", isApproved, herokuId } = body;
@@ -1001,9 +1036,7 @@ const updateDistributorDataForSI = async (body, sfid) => {
       Files__c,
       Comments__c,
       herokuId,
-      } = body;
-    console.log(Proprietor_Details__c);
-    console.log("checking flow 1")
+    } = body;
 
     const fieldUpdates = {
       [OBJECTKEYNAME.Firm_Name__c]: Firm_Name__c,
@@ -1038,15 +1071,11 @@ const updateDistributorDataForSI = async (body, sfid) => {
       [OBJECTKEYNAME.GSTIN_APPLIED__C]: GSTIN_applied__c,
       [OBJECTKEYNAME.GSTIN_Registration_Date__c]: GSTIN_Registration_Date__c,
       [OBJECTKEYNAME.INST_LICENSE_NO__C]: INST_LIC_NO__c,
-      [OBJECTKEYNAME.INST_LIC_Registration_Date__c]:
-        INST_LIC_Registration_Date__c,
-      [OBJECTKEYNAME.INST_LIC_Registration_Validity__c]:
-        INST_LIC_Registration_Validity__c,
+      [OBJECTKEYNAME.INST_LIC_Registration_Date__c]: INST_LIC_Registration_Date__c,
+      [OBJECTKEYNAME.INST_LIC_Registration_Validity__c]: INST_LIC_Registration_Validity__c,
       [OBJECTKEYNAME.FERT_LICENSE_NO__C]: FERT_LIC_NO__c,
-      [OBJECTKEYNAME.FERT_LIC_Registration_Date__c]:
-        FERT_LIC_Registration_Date__c,
-      [OBJECTKEYNAME.FERT_LIC_Registration_Validity__c]:
-        FERT_LIC_Registration_Validity__c,
+      [OBJECTKEYNAME.FERT_LIC_Registration_Date__c]: FERT_LIC_Registration_Date__c,
+      [OBJECTKEYNAME.FERT_LIC_Registration_Validity__c]: FERT_LIC_Registration_Validity__c,
       [OBJECTKEYNAME.DD_Cheque_Online_Ref_No__c]: DD_Cheque_Online_Ref_No__c,
       [OBJECTKEYNAME.DATE__C]: Date__c,
       [OBJECTKEYNAME.Bank_Name__c]: Bank_Name__c,
@@ -1065,51 +1094,46 @@ const updateDistributorDataForSI = async (body, sfid) => {
       [OBJECTKEYNAME.Capital_Employed__c]: Capital_Employed__c,
       [OBJECTKEYNAME.Annual_Income__c]: Annual_Income__c,
       [OBJECTKEYNAME.Expected_IIL_Investment__c]: Expected_IIL_Investment__c,
-      [OBJECTKEYNAME.Expected_1_Year_Turnover_With_IIL_c]:
-        Expected_1_Year_Turnover_With_IIL_c,
-      [OBJECTKEYNAME.Expected_Next_Year_Turnover_With_IIL_c]:
-        Expected_Next_Year_Turnover_With_IIL_c,
+      [OBJECTKEYNAME.Expected_1_Year_Turnover_With_IIL_c]: Expected_1_Year_Turnover_With_IIL_c,
+      [OBJECTKEYNAME.Expected_Next_Year_Turnover_With_IIL_c]: Expected_Next_Year_Turnover_With_IIL_c,
       [OBJECTKEYNAME.Proposed_Payment_Terms]: Proposed_Payment_Terms,
       [OBJECTKEYNAME.Payment_Credit_Limit__c]: Payment_Credit_Limit__c,
       [OBJECTKEYNAME.Total_Retailers__c]: Total_Retailers__c,
       [OBJECTKEYNAME.Total_Districts_Covered__c]: Total_Districts_Covered__c,
       [OBJECTKEYNAME.Total_Villages_Covered__c]: Total_Villages_Covered__c,
       [OBJECTKEYNAME.Area_Specification__c]: Area_Specification__c,
-      [OBJECTKEYNAME.Major_Crops__c]: Major_Crops__c,
+      // [OBJECTKEYNAME.Major_Crops__c]: Major_Crops__c,
       [OBJECTKEYNAME.Dealer_Credit__c]: Dealer_Credit__c,
       [OBJECTKEYNAME.Dealer_Credit_Days__c]: Dealer_Credit_Days__c,
       [OBJECTKEYNAME.Transporter_Name_1__c]: Transporter_Name_1__c,
       [OBJECTKEYNAME.Transporter_Name_2__c]: Transporter_Name_2__c,
       [OBJECTKEYNAME.Transporter_Name_3__c]: Transporter_Name_3__c,
-      [OBJECTKEYNAME.Material_Dispatch_Destination__c]:
-        Material_Dispatch_Destination__c,
+      [OBJECTKEYNAME.Material_Dispatch_Destination__c]: Material_Dispatch_Destination__c,
       [OBJECTKEYNAME.Depot_Distance__c]: Depot_Distance__c,
       [OBJECTKEYNAME.Other_Dealer_Info__c]: Other_Dealer_Info__c,
       [OBJECTKEYNAME.Party_Credibility__c]: Party_Credibility__c,
-      [OBJECTKEYNAME.Is_Party_Visited_Personally__c]:
-        Is_Party_Visited_Personally__c,
-      [OBJECTKEYNAME.Distributor_Approval_Status__c]:
-        DISTRIBUTOR_APPROVAL_STATUS.SENT_FOR_APPROVAL_L2,
+      [OBJECTKEYNAME.Is_Party_Visited_Personally__c]: Is_Party_Visited_Personally__c,
+      [OBJECTKEYNAME.Distributor_Approval_Status__c]: DISTRIBUTOR_APPROVAL_STATUS.SENT_FOR_APPROVAL_L2,
     };
 
     const values = Object.values(fieldUpdates);
     values.push(herokuId); // Add the herokuId value
-    const updateQuery = await distributor.updateQry(values, fieldUpdates);
+    const updateQuery = await Account.updateAccount(values, fieldUpdates);
 
     if (updateQuery) {
-      if (Proprietor_Details__c.r) {
+      if (Proprietor_Details__c.length > 0) {
         // before inserting delete the old records
-        deletedRecords = await distributor.deleteQry(Proprietor_Details__c);
+        deletedRecords = await Distributor.deleteProprietorByAccountId(herokuId);
 
         let insertData = [];
         for (let index = 0; index < Proprietor_Details__c.length; index++) {
           let {
-            Business_Owner_Name__c = "",
-            Permanent_Address__c = "",
-            Present_Address__c = "",
-            Father_Husband_Name__c = "",
-            Business_Owner_Mobile__c = "",
-            Business_Owner_Email__c = "",
+            Business_Owner_Name__c = '',
+            Permanent_Address__c = '',
+            Present_Address__c = '',
+            Father_Husband_Name__c = '',
+            Business_Owner_Mobile__c = '',
+            Business_Owner_Email__c = '',
           } = Proprietor_Details__c[index];
           if (
             !(
@@ -1137,24 +1161,22 @@ const updateDistributorDataForSI = async (body, sfid) => {
             getUniqueId(),
           ]);
         }
-        insertPropertieorRes = await distributor.insertPropertieor(insertData);
+        insertPropertieorRes = await Distributor.insertProprietorDetails(insertData);
       }
-      if (Company_Details__c.rowCount) {
+      if (Company_Details__c.length > 0) {
         // before inserting delete the old records
-        //const deletedRecords = `DELETE FROM ${SCHEMA.SALESFORCE.Retail_of_Business__c} WHERE ${OBJECTKEYNAME.ACCOUNT__HEROKU_ID__C} = '${herokuId}'`
-        //await client.query(deletedRecords);
-        deletedRecords = await distributor.deleteQry(Company_Details__c);
+        deletedRecords = await Distributor.deleteCompanyDetails(herokuId);
 
         let insertData = [];
         for (let index = 0; index < Company_Details__c.length; index++) {
           let {
-            Company_Existing_Business__c = "",
-            Total_Dealing_Years__c = "",
-            Major_Product__c = "",
-            Annual_Turnover__c = "",
-            Total_Dealers__c = "",
-            Total_Credit_Years__c = "",
-            Cash_Or_Credit__c = "",
+            Company_Existing_Business__c = '',
+            Total_Dealing_Years__c = '',
+            Major_Product__c = '',
+            Annual_Turnover__c = '',
+            Total_Dealers__c = '',
+            Total_Credit_Years__c = '',
+            Cash_Or_Credit__c = '',
           } = Company_Details__c[index];
           if (
             !(
@@ -1165,9 +1187,6 @@ const updateDistributorDataForSI = async (body, sfid) => {
                 Annual_Turnover__c &&
                 Total_Dealers__c
               )
-              //  &&
-              // Total_Credit_Years__c
-              // && Cash_Or_Credit__c
             )
           ) {
             return { message: "Company Details missing params", status: false };
@@ -1184,25 +1203,23 @@ const updateDistributorDataForSI = async (body, sfid) => {
             getUniqueId(),
           ]);
         }
-        await distributor.insertCompanyDetails(insertData);
+        await Distributor.insertCompanyDetails(insertData);
       }
-      if (Product_Of_Interest__c.rowCount) {
+      if (Product_Of_Interest__c.length > 0) {
         // before inserting delete the old records
-        //const deletedRecords = `DELETE FROM ${SCHEMA.SALESFORCE.Product_of_Interest__c} WHERE ${OBJECTKEYNAME.ACCOUNT__HEROKU_ID__C} = '${herokuId}'`
-        //await client.query(deletedRecords);
-        deletedRecords = await distributor.deleteQry(Product_Of_Interest__c);
+        deletedRecords = await Distributor.deleteProductOfInterest(herokuId);
 
         let insertData = [];
         for (let index = 0; index < Product_Of_Interest__c.length; index++) {
           let {
-            Product_Name__c = "",
-            Other_Products__c = "",
-            Products_Unit__c = "",
-            Current_Fiscal_Year__c = "",
-            Next_Fiscal_Year__c = "",
-            Next_Fiscal_Year_Quantity__c = "",
-            Next_Fiscal_Year_Unit__c = "",
-            Quantity__c = "",
+            Product_Name__c = '',
+            Other_Products__c = '',
+            Products_Unit__c = '',
+            Current_Fiscal_Year__c = '',
+            Next_Fiscal_Year__c = '',
+            Next_Fiscal_Year_Quantity__c = '',
+            Next_Fiscal_Year_Unit__c = '',
+            Quantity__c = '',
           } = Product_Of_Interest__c[index];
           if (
             !(
@@ -1233,24 +1250,20 @@ const updateDistributorDataForSI = async (body, sfid) => {
             getUniqueId(),
           ]);
         }
-        await distributor.productOfInterst(insertData);
+        await Distributor.insertProductOfInterest(insertData);
       }
-      if (Sister_Company_Details__c.rowCount) {
+      if (Sister_Company_Details__c.length > 0) {
         // before inserting delete the old records
-        //const deletedRecords = `DELETE FROM ${SCHEMA.SALESFORCE.Sister_Company__c} WHERE ${OBJECTKEYNAME.ACCOUNT__HEROKU_ID__C} = '${herokuId}'`
-        //await client.query(deletedRecords);
-        deletedRecords = await distributor.deleteQry(Sister_Company_Details__c);
+        deletedRecords = await Distributor.deleteSisterCompanyDetails(herokuId);
 
         let insertData = [];
         for (let index = 0; index < Sister_Company_Details__c.length; index++) {
           let {
-            Sister_Company__c = "",
-            Sister_Company_Address__c = "",
-            Sister_Company_Turnover__c = "",
+            Sister_Company__c = '',
+            Sister_Company_Address__c = '',
+            Sister_Company_Turnover__c = '',
           } = Sister_Company_Details__c[index];
-          // if (!(Sister_Company__c && Sister_Company_Address__c && Sister_Company_Turnover__c)) {
-          //   return { message: 'Sister company details missing params', status: false };
-          // }
+
           insertData.push([
             Sister_Company__c,
             Sister_Company_Address__c,
@@ -1259,26 +1272,101 @@ const updateDistributorDataForSI = async (body, sfid) => {
             getUniqueId(),
           ]);
         }
-        await distributor.sisterCompanyDetails(insertData);
+        await Distributor.insertSisterCompanyDetails(insertData);
       }
-      if (Files__c.rowCount) {
+      if (Material_Dispatch_Destination__c.length > 0) {
         // before inserting delete the old records
-        //const deletedRecords = `DELETE FROM ${SCHEMA.SALESFORCE.FILE__C} WHERE ${OBJECTKEYNAME.ACCOUNT__HEROKU_ID__C} = '${herokuId}'`
-        //await client.query(deletedRecords);
-        deletedRecords = await distributor.deleteQry(Files__c);
+        deletedRecords = await Distributor.deleteMaterialDispatchDestination(herokuId);
+        let insertData = [];
+        for (let index = 0; index < Material_Dispatch_Destination__c.length; index++) {
+          let {
+            depot_name__c = '',
+          } = Material_Dispatch_Destination__c[index];
+
+          insertData.push([
+            depot_name__c,
+            herokuId,
+            getUniqueId(),
+          ]);
+        }
+        await Distributor.insertMaterialDispatchDestination(insertData);
+      }
+      if (Major_Crops__c.length > 0) {
+        // before inserting delete the old records
+        deletedRecords = await Distributor.deleteMajorCrops(herokuId);
+        let insertData = [];
+        for (let index = 0; index < Major_Crops__c.length; index++) {
+          let { crop_Name__c = '' } = Major_Crops__c[index];
+          insertData.push([crop_Name__c, herokuId, getUniqueId()]);
+        }
+        await Distributor.insertCrop(insertData);
+      }
+      if (Files__c.length > 0) {
+        // before inserting delete the old records
+        deletedRecords = await Files.deleteAccountFileDetailById(herokuId);
         let insertData = [];
         for (let index = 0; index < Files__c.length; index++) {
-          let { fileName = "", url = "" } = Files__c[index];
+          let { fileName = '', url = '' } = Files__c[index];
           if (!(fileName && url)) {
-            return { message: "Files missing params", status: false };
+            return { message: 'Files missing params', status: false };
           }
           insertData.push([fileName, url, herokuId, getUniqueId()]);
         }
-        await distributor.files(insertData);
+        await Files.insertMultipleAccountFiles(insertData);
       }
-      approvalResponse = await distributor.approvedQuery();
+
+      const values = [
+        herokuId,
+        getUniqueId(),
+        Comments__c || '',
+        '',
+        sfid,
+        STATUS.PENDING
+      ]
+      approvalResponse = await Distributor.approveQry(values);
 
       // also set the hierarchy level based on the value of isApproved
+
+      return {
+        message: "Distributor Mapping updated successfully",
+        status: true,
+      };
+    }
+  } catch (error) {
+    console.error(error);
+    throw error;
+  }
+};
+const updateDistributorDataForFinance = async (body, sfid) => {
+  try {
+    const {
+      Comments__c = '',
+      isApproved,
+
+      herokuId,
+    } = body;
+
+    // also set the hierarchy level based on the value of isApproved
+    const values = [
+      herokuId,
+      getUniqueId(),
+      Comments__c || "",
+      "L4",
+      sfid,
+      isApproved === "Yes" ? STATUS.APPROVED : STATUS.REJECTED,
+    ];
+    approvalResponse = await Distributor.approveQry(values);
+
+
+    if (approvalResponse) {
+      // after approval record is inserted update the distributors approval status
+      const accountFieldUpdates = {
+        [OBJECTKEYNAME.Distributor_Approval_Status__c]: isApproved === 'Yes' ? DISTRIBUTOR_APPROVAL_STATUS.APPROVED_BY_L4 : DISTRIBUTOR_APPROVAL_STATUS.REJECTED_BY_L4,
+      }
+      const accountValues = Object.values(accountFieldUpdates);
+      accountValues.push(herokuId); // Add the herokuId value
+
+      await Account.updateAccount(accountFieldUpdates, accountValues);
 
       return {
         message: "Distributor Mapping updated successfully",
@@ -1303,25 +1391,31 @@ const updateDistributorDataForRM = async (body, sfid) => {
       herokuId,
     } = body;
 
-    updatedqryres = await distributor.updatedQuery(
-      Credit_Period_Specify_No_of_Days__c,
-      Creditibility_in_Market_for_Managers_O__c,
-      Credit_Limit_Specify_Amount__c,
+    // also set the hierarchy level based on the value of isApproved
+    const values = [
       herokuId,
-      isApproved
-    );
-    if (updatedqryres) {
-      // also set the hierarchy level based on the value of isApproved
+      getUniqueId(),
+      Comments__c || "",
+      "L2",
+      sfid,
+      isApproved === "Yes" ? STATUS.APPROVED : STATUS.REJECTED,
+    ];
+    approvalResponse = await Distributor.approveQry(values);
 
-      const values = [
-        herokuId,
-        getUniqueId(),
-        Comments__c || "",
-        "L2",
-        sfid,
-        isApproved === "Yes" ? STATUS.APPROVED : STATUS.REJECTED,
-      ];
-      approvalResponse = await distributor.approveQry(values);
+
+    if (approvalResponse) {
+      // after approval record is inserted update the distributors approval status
+      const accountFieldUpdates = {
+        [OBJECTKEYNAME.Credit_Period_Specify_No_of_Days__c]: Credit_Period_Specify_No_of_Days__c,
+        [OBJECTKEYNAME.Creditibility_in_Market_for_Managers_O__c]: Creditibility_in_Market_for_Managers_O__c,
+        [OBJECTKEYNAME.Credit_Limit_Specify_Amount__c]: Credit_Limit_Specify_Amount__c,
+        [OBJECTKEYNAME.Distributor_Approval_Status__c]: isApproved === 'Yes' ? DISTRIBUTOR_APPROVAL_STATUS.APPROVED_BY_L2 : DISTRIBUTOR_APPROVAL_STATUS.REJECTED_BY_L2,
+      }
+      const accountValues = Object.values(accountFieldUpdates);
+      accountValues.push(herokuId); // Add the herokuId value
+
+      await Account.updateAccount(accountFieldUpdates, accountValues);
+
       return {
         message: "Distributor Mapping updated successfully",
         status: true,
@@ -1333,20 +1427,12 @@ const updateDistributorDataForRM = async (body, sfid) => {
   }
 };
 
+// update distribuotr details
 exports.updateDistributorMappingDetailsById = async (req, res) => {
   try {
-    const { profile__c, sfid } = req.payload;
+    let { profile__c, sfid } = req.payload;
 
     const paramsData = req.body;
-    console.log("paramsData",paramsData);
-
-    if (!sfid) {
-      return res.status(404).json(responseBody(
-        MESSAGE.UNAUTHORIZEDACCESS,
-        API_END_POINT.UPDATE_DISTRIBUTOR_MAPPING_DETAILS_BY_ID
-      ));
-    }
-    console.log("checking flow");
 
     if (!paramsData.herokuId) {
       return res.status(404).json(responseBody(
@@ -1355,12 +1441,11 @@ exports.updateDistributorMappingDetailsById = async (req, res) => {
       ));
     }
 
-    let profile = profile__c;
-
+    // if profile not found from token, get it from user profile
     if (!profile__c) {
-      const user = await distributor.userBySfid(sfid);
+      const user = await UserModal.getUserBySfid(sfid);
       if (user.rowCount) {
-        profile = user.rows[0].profile__c;
+        profile__c = user.rows[0].profile__c;
       } else {
         return res.status(404).json(responseBody(
           MESSAGE.UNAUTHORIZEDACCESS,
@@ -1368,15 +1453,15 @@ exports.updateDistributorMappingDetailsById = async (req, res) => {
         ));
       }
     }
-    console.log("checking flow");
 
+    // restrict other profiles to update distrributors data
     if (
       !(
-        profile === "SI" ||
-        profile === "AM" ||
-        profile === "RM" ||
-        profile === "VP" ||
-        profile === "Finance"
+        profile__c === USER_HIERARCHY.SI__user ||
+        profile__c === USER_HIERARCHY.AM__user ||
+        profile__c === USER_HIERARCHY.RM__user ||
+        profile__c === USER_HIERARCHY.VP_user ||
+        profile__c === USER_HIERARCHY.Finance_user
       )
     ) {
       return res.status(404).json(responseBody(
@@ -1385,10 +1470,8 @@ exports.updateDistributorMappingDetailsById = async (req, res) => {
       ));
     }
 
-    const checkDistributor = await distributor.checkDistributorQuery(
-      paramsData
-    );
-    console.log("checking flow 3");
+    // check if distributor's record already exists
+    const checkDistributor = await Account.getAccountDetailById(paramsData.herokuId);
 
     if (checkDistributor.rowCount === 0) {
       return res.status(404).json(responseBody(
@@ -1396,54 +1479,56 @@ exports.updateDistributorMappingDetailsById = async (req, res) => {
         API_END_POINT.UPDATE_DISTRIBUTOR_MAPPING_DETAILS_BY_ID
       ));
     }
-    console.log("checking flow 3");
 
-    if (profile === "VP") {
-      if (
-        checkDistributor.rows[0].distributor_approval_status__c ===
-        DISTRIBUTOR_APPROVAL_STATUS.APPROVED_BY_L3
-      ) {
+    // checking if the status is already updated by VP profile
+    if (profile__c === USER_HIERARCHY.VP_user) {
+      if (checkDistributor.rows[0].distributor_approval_status__c == DISTRIBUTOR_APPROVAL_STATUS.APPROVED_BY_L3) {
         return res.status(404).json(responseBody(
           "Distributor already approved from VP",
           API_END_POINT.UPDATE_DISTRIBUTOR_MAPPING_DETAILS_BY_ID
         ));
       }
     }
-    console.log("checking flow 4");
 
-    if (profile === "Finance") {
-      if (
-        checkDistributor.rows[0].distributor_approval_status__c ===
-        DISTRIBUTOR_APPROVAL_STATUS.APPROVED_BY_L4
-      ) {
+    // checking if the status is already updated by Finance profile
+    if (profile__c === USER_HIERARCHY.Finance_user) {
+      if (checkDistributor.rows[0].distributor_approval_status__c == DISTRIBUTOR_APPROVAL_STATUS.APPROVED_BY_L4) {
         return res.status(404).json(responseBody(
           "Distributor already approved from finance team",
           API_END_POINT.UPDATE_DISTRIBUTOR_MAPPING_DETAILS_BY_ID
         ));
       }
     }
+
     let updateQry;
-    let distributorName = checkDistributor.rows[0].distributorname;
-    let saleRepresentativeSfid =
-      checkDistributor.rows[0].saleRepresentativesfid;
-    if (profile == "VP") {
-      updateQry = ``;
-      switch (
-        checkDistributor.rows[0].distributor_approval_status__c.toLocaleLowerCase()
-      ) {
-        case DISTRIBUTOR_APPROVAL_STATUS.APPROVED_BY_L2.toLocaleLowerCase():
-          updateQry = await updateDistributorDataForVP(paramsData, sfid);
-          break;
-        default:
-          break;
+    let distributorName = checkDistributor.rows[0].firm_name__c;
+    let saleRepresentativeSfid = checkDistributor.rows[0].owner__c;
+    if (profile__c == USER_HIERARCHY.VP_user) {
+      if (checkDistributor.rows[0].distributor_approval_status__c.toLocaleLowerCase() == DISTRIBUTOR_APPROVAL_STATUS.APPROVED_BY_L2.toLocaleLowerCase()) {
+
+        // insert new approval record
+        const { Comments__c = "", isApproved, herokuId } = paramsData;
+        const approvalValues = [
+          herokuId,
+          getUniqueId(),
+          Comments__c || "",
+          "L3",
+          sfid,
+          isApproved === "Yes" ? STATUS.APPROVED : STATUS.REJECTED,
+        ];
+        approvalInsertResponse = await Distributor.approveQry(approvalValues);
+
+        // after approval record is inserted update the distributors approval status
+        const accountFieldUpdates = {
+          [OBJECTKEYNAME.Distributor_Approval_Status__c]: isApproved === 'Yes' ? DISTRIBUTOR_APPROVAL_STATUS.APPROVED_BY_L3 : DISTRIBUTOR_APPROVAL_STATUS.REJECTED_BY_L3
+        }
+        const accountValues = Object.values(accountFieldUpdates);
+        accountValues.push(herokuId); // Add the herokuId value
+
+        await Account.updateAccount(accountFieldUpdates, accountValues);
       }
     } else {
-      console.log("checking flow");
-      console.log(checkDistributor.rows[0]);
-      updateQry = ``;
-      switch (
-        checkDistributor.rows[0].distributor_approval_status__c.toLocaleLowerCase()
-      ) {
+      switch (checkDistributor.rows[0].distributor_approval_status__c.toLocaleLowerCase()) {
         case DISTRIBUTOR_APPROVAL_STATUS.REJECTED_BY_L2.toLocaleLowerCase():
         case DISTRIBUTOR_APPROVAL_STATUS.REJECTED_BY_L3.toLocaleLowerCase():
         case DISTRIBUTOR_APPROVAL_STATUS.REJECTED_BY_L4.toLocaleLowerCase():
@@ -1457,8 +1542,6 @@ exports.updateDistributorMappingDetailsById = async (req, res) => {
           updateQry = await updateDistributorDataForFinance(
             paramsData,
             sfid,
-            saleRepresentativeSfid,
-            distributorName
           );
           break;
         default:
@@ -1467,15 +1550,16 @@ exports.updateDistributorMappingDetailsById = async (req, res) => {
     }
 
     if (updateQry && updateQry.status) {
-      return responseBody(
+      return res.json(responseBody(
         updateQry.message,
-        API_END_POINT.UPDATE_DISTRIBUTOR_MAPPING_DETAILS_BY_ID
-      );
+        API_END_POINT.UPDATE_DISTRIBUTOR_MAPPING_DETAILS_BY_ID,
+        false,
+      ));
     }
-    return responseBody(
+    return res.status(404).json(responseBody(
       updateQry.message,
       API_END_POINT.UPDATE_DISTRIBUTOR_MAPPING_DETAILS_BY_ID
-    );
+    ));
   } catch (error) {
     console.error(error);
     return res
@@ -1489,21 +1573,17 @@ exports.updateDistributorMappingDetailsById = async (req, res) => {
   }
 };
 exports.getDistributors = async (req, res) => {
-  
   try {
-    console.log(API_END_POINT.GET_DISTRIBUTORS, " ========> START");
-    const {  loginUser } = req.body;
+    const { loginUser } = req.body;
     const { sfid } = req.payload;
-    console.log("checking flow");
-    const recordTypes = await distributor.getDistributors(loginUser, sfid);
-    console.log(API_END_POINT.GET_DISTRIBUTORS, " ========> DATA");
+    const recordTypes = await Distributor.getDistributors(loginUser, sfid);
     //await pool.query('COMMIT');
     return res.status(200).json(responseBody(
       MESSAGE.FETCHSUCCESS,
       API_END_POINT.GET_DISTRIBUTORS,
+      false,
       recordTypes.rows
     ));
-    console.log("checking flow");
   } catch (error) {
     console.error(error);
     return res

@@ -4,7 +4,6 @@ const { validateSignature } = require("../../utilities/sessionTokens");
 
 module.exports = async (req, res, next) => {
     const token = req.header("x-auth-token");
-
     if (!token) {
         return res.status(401).json(responseBody("No token, authorization denied", 'Authentication'));
     }
@@ -23,7 +22,6 @@ module.exports = async (req, res, next) => {
         if(!checkTokenExists){
             return res.status(403).json(responseBody("Unauthorized", 'Authentication'));
         }
-        
         req.payload = data;
         next();
     } catch (err) {

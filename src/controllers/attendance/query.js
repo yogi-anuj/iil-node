@@ -231,7 +231,7 @@ const attendance = {
         }
     },
     // get pending attendance requests for approval
-    getPendingAttendanceRequests: async (userSfid, pageNumber) => {
+    getPendingAttendanceRequests: async (userSfid, pageNumber = 1) => {
         try {
             if(!userSfid){
                 return "Missing userSfid from query"

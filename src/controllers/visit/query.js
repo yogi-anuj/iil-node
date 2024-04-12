@@ -42,7 +42,7 @@ const distributorVisits = {
     searchField,
     distributorId,
     sfid,
-    pageNumber,
+    pageNumber = 1,
     pageLimit
   ) => {
     try {

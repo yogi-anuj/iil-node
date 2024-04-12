@@ -33,7 +33,7 @@ const { getUniqueId } = require("../../../utilities/uniqueId");
         if (!(mobile && farmerName && eventId && state_sfid__c && district_sfid__c && sub_district_sfid__c && village_sfid__c)) {
             return costomError(MESSAGE.MISSINGPARAMS, API_END_POINT.ADD_FARMER_FOR_EVENT);
         }
-        const response=await Account.getAccountDetailsByMobile(mobile, RECORD_TYPES.FARMER);
+        const response=await Account.getAccountDetailsByMobileAndAccountType(mobile, RECORD_TYPES.FARMER);
         if(response.rows){
             return res.status(500).json(responseBody(MESSAGE.ACCOUNT_ALREADY_EXIST,API_END_POINT.ADD_FARMER_FOR_EVENT));
         }

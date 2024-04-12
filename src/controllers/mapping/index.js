@@ -1,7 +1,7 @@
-const { API_END_POINT, MESSAGE } = require("../../utilities/constants");
+const { API_END_POINT, MESSAGE, VALIDATE } = require("../../utilities/constants");
 const { responseBody } = require("../../utilities/customResponse");
 const { Files } = require("../files/query");
-const { distributorMapping } = require("./query");
+const { distributorMapping, Account } = require("./query");
 
 // get all distributors
 exports.getDistributorMapping = async(req, res) => {
@@ -51,5 +51,31 @@ exports.getDistributorMappingById = async (req, res) => {
     } catch (error) {
         console.error(error);
         return res.status(500).json(responseBody(error.message, API_END_POINT.GET_DISTRIBUTOR_MAPPING_DETAILS_BY_ID));
+    }
+}
+
+// validate fields like mobile, aadhar, mobile in event, gst, pan, fertilizer no, insecticide no, etc...
+exports.validateFields = async(req, res) => {
+    try {
+        const { eventName, data, recordTypeId } = req.body;
+        
+        if (!(eventName && data)) {
+            return res.status(404).json(responseBody(MESSAGE.MISSINGPARAMS, API_END_POINT.VALIDATE_FIELD));
+        }
+
+        let response;
+        switch (eventName.toLowerCase()) {
+            case VALIDATE.MOBILE:
+                response = await Account.getAllAccountDetailsByMobile(data, recordTypeId);
+                break;
+        
+            default:
+                break;
+        }
+        
+        return res.json(responseBody(MESSAGE.FETCHSUCCESS, API_END_POINT.VALIDATE_FIELD, false, response.rows));
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json(responseBody(error.message, API_END_POINT.VALIDATE_FIELD))
     }
 }

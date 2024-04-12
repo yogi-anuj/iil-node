@@ -127,9 +127,7 @@ const user = {
             WHERE
             ${OBJECTKEYNAME.SFID} = '${sfId}'
             `;
-            await client.query(removeUsedOtpQry);
-
-            return responseBody(MESSAGE.UPDATESUCCESS, API_END_POINT.VERIFY_OTP, false);
+            return await client.query(removeUsedOtpQry);
         } catch (error) {
             throw error;
         }
@@ -169,6 +167,7 @@ const user = {
             SET
             session_token__c = '${token || ''}'
             WHERE user_sfid__c = '${sfId}'
+            RETURNING *
             `
             return await client.query(updateQry);
         } catch (error) {
@@ -187,6 +186,7 @@ const user = {
                 const insertQry = `
                 INSERT INTO ${SCHEMA.PUBLIC.SESSION} (user_sfid__c, session_token__c, "objectId" ) VALUES ( '${sfId}', '${token}', '${getUniqueId()}' )
                 `;
+                console.log("checking insert qry", insertQry);
                 return await client.query(insertQry);
             }
 

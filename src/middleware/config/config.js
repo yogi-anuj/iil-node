@@ -10,6 +10,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cors());
 app.use(helmet());
 app.use(xss());
+app.use(morgan('dev'));
 
 // logging the current environment server
 if (process.env.SERVER === 'development') {

@@ -4,11 +4,13 @@ const { updateAttendanceStatus, getAttendanceInformation, getPast2Attendances, m
 const { userOtpLogin, verifyOtp, logoutUser } = require('../controllers/authenticate');
 const { checkExpenseApprovalStatus, getExpenseTypes, createExpense, getExpenseByDate, submitExpense, submitMultipleExpenses, getExpense, getExpenseHistory, getExpensesLimit, getPendingExpenseApprovals, getPendingExpenseApprovalsById, approveMassExpensesRequest, approveExpenseRequestById } = require('../controllers/expense');
 const { getAllFeedback, addNewFeedback, updateFeedbackStatus } = require('../controllers/feedback');
+const { validateFields } = require('../controllers/mapping');
 const { updateAgriExpertMappingDetailsById, getAgriExpertMappingDetailsById, getAgriExpertMappingDetails, addAgriExpertMappingDetails } = require('../controllers/mapping/agriExpert');
 const { getDistributorMapping, getDistributorMappingById, getDepotsForDistributor, addDistributorsMappingDetails,getDistributors, updateDistributorMappingDetailsById } = require('../controllers/mapping/distributor');
 const { addFarmerMappingDetails, getFarmerMappingDetails, getFarmerMappingDetailsById, updateFarmerMappingDetailsById } = require('../controllers/mapping/farmer');
 const { addRetailerMappingDetails, getRetailerMappingDetails, getRetailerMappingDetailsById, updateRetailerMappingDetailsById } = require('../controllers/mapping/retailer');
 const { getPicklistData } = require('../controllers/picklist');
+const { getHierarchyWiseRegion } = require('../controllers/region');
 const { getAreaManager } = require('../controllers/user');
 const { getDistributorVisit, addDistributorVisit, getDistributorVisitById } = require('../controllers/visit/distributor');
 const authentication = require('../middleware/authentication');
@@ -61,6 +63,9 @@ router.post(`/${API_END_POINT.ADD_FEEDBACK}`, authentication, addNewFeedback);
 router.post(`/${API_END_POINT.UPDATE_FEEDBACK_STATUS}`, authentication, updateFeedbackStatus);
 router.post(`/${API_END_POINT.GET_FEEDBACK}`, authentication, getAllFeedback);
 
+// hierarchy wise region routes
+router.post(`/${API_END_POINT.GET_HIERARCHY_WISE_REGION}`, authentication, getHierarchyWiseRegion);
+
 // distributor-mapping routes
 router.post(`/${API_END_POINT.GET_DISTRIBUTOR_MAPPING_DETAILS}`, authentication, getDistributorMapping);
 router.post(`/${API_END_POINT.GET_DISTRIBUTOR_MAPPING_DETAILS_BY_ID}`, authentication, getDistributorMappingById);
@@ -94,6 +99,10 @@ router.post(`/${API_END_POINT.UPDATE_AGRI_EXPERT_MAPPING_DETAILS_BY_ID}`, authen
 router.post(`/${API_END_POINT.ADD_DISTRIBUTOR_VISIT}`, authentication, addDistributorVisit);
 router.post(`/${API_END_POINT.GET_DISTRIBUTOR_VISIT}`, authentication, getDistributorVisit);
 router.post(`/${API_END_POINT.GET_DISTRIBUTOR_VISIT_BY_ID}`, authentication, getDistributorVisitById);
+
+
+// field validation routes
+router.post(`/${API_END_POINT.VALIDATE_FIELD}`, authentication, validateFields);
 
 
 module.exports = router;

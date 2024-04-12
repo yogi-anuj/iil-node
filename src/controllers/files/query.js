@@ -49,7 +49,7 @@ const Files = {
         }
     },
     // get expense files
-    getExpenseFiles: async(expenseId) => {
+    getExpenseFiles: async (expenseId) => {
         try {
             const getUrlQry = `
             SELECT 
@@ -59,6 +59,35 @@ const Files = {
             `;
 
             return await client.query(getUrlQry);
+        } catch (error) {
+            throw error;
+        }
+    },
+    // insert files for account
+    insertMultipleAccountFiles: async (insertData) => {
+        try {
+            const fileInsertQry = format(
+                `
+                INSERT INTO ${SCHEMA.SALESFORCE.FILE__C} (
+                    ${OBJECTKEYNAME.NAME__C},
+                    ${OBJECTKEYNAME.PICTURE__C},
+                    ${OBJECTKEYNAME.ACCOUNT__HEROKU_ID__C},
+                    ${OBJECTKEYNAME.HEROKU_ID__C}
+                )
+                VALUES %L returning *
+                `,
+                insertData
+            );
+            return await client.query(fileInsertQry);
+        } catch (error) {
+            throw error;
+        }
+    },
+    // delete files related to an account
+    deleteAccountFileDetailById: async (herokuId) => {
+        try {
+            const deleteFileRecords = `DELETE FROM ${SCHEMA.SALESFORCE.FILE__C} WHERE ${OBJECTKEYNAME.ACCOUNT__HEROKU_ID__C} = '${herokuId}'`;
+            await client.query(deleteFileRecords);
         } catch (error) {
             throw error;
         }

@@ -297,7 +297,7 @@ const Expense = {
         }
     },
     // current users rejected and draft expense
-    getExpense: async (userSfid, pageNumber) => {
+    getExpense: async (userSfid, pageNumber = 1) => {
         try {
             let expenseQry = `
             SELECT
@@ -330,7 +330,7 @@ const Expense = {
         }
     },
     // current users pending and approved expense
-    getExpenseHistory: async (userSfid, pageNumber) => {
+    getExpenseHistory: async (userSfid, pageNumber = 1) => {
         try {
             let expenseQry = `
             SELECT
@@ -372,7 +372,7 @@ const Expense = {
         }
     },
     // get pending approval requests
-    getPendingApprovalRequests: async (userSfid, pageNumber) => {
+    getPendingApprovalRequests: async (userSfid, pageNumber = 1) => {
         try {
             let expenseQry = `
             SELECT
